@@ -1,3 +1,10 @@
+/*
+Package main provides simple file/directory backup to
+remote cloud such as Google and Amazon.
+
+Concurrent backup will be performed agains all providers
+enabled in backup configuration INI file
+*/
 package main
 
 import (
@@ -93,6 +100,9 @@ func main() {
 
 }
 
+// parseDest parses bucket and destination directory/file name is provided
+// Format is similar to scp utility, where we use bucket name instead of hostname, i.e.
+// bucket_name:destination_file/directory_name
 func parseDest(dest string) (bucket, path string) {
 	var parts []string
 	d := strings.SplitN(dest, ":", 2)
@@ -151,6 +161,7 @@ func runBackups(ctx context.Context, dest string, providers map[string]*config, 
 	}
 }
 
+// status visualizes progress, successes & failures  from multiple concurrent backups into different cloud providers
 func status(ctx context.Context, file string, statuses map[string]chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	ctx, cancel := context.WithCancel(ctx)
@@ -226,6 +237,7 @@ func status(ctx context.Context, file string, statuses map[string]chan string, w
 
 }
 
+// upload lauches specific backup library and reports success/failure to a channel, that is read separately
 func upload(ctx context.Context, worker cloud.Backuper, file string, dest string, status chan string, wg *sync.WaitGroup) {
 	defer func() {
 		close(status)
