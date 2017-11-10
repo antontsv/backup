@@ -2,7 +2,7 @@
 Package main provides simple file/directory backup to
 remote cloud such as Google and Amazon.
 
-Concurrent backup will be performed agains all providers
+Concurrent backup will be performed against all providers
 enabled in backup configuration INI file
 */
 package main
@@ -161,7 +161,7 @@ func runBackups(ctx context.Context, dest string, providers map[string]*config, 
 	}
 }
 
-// status visualizes progress, successes & failures  from multiple concurrent backups into different cloud providers
+// status visualizes progress, successes & failures from multiple concurrent backups.
 func status(ctx context.Context, file string, statuses map[string]chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	ctx, cancel := context.WithCancel(ctx)
