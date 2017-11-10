@@ -61,7 +61,6 @@ func (svc *service) multiPartUpload(ctx context.Context, file *os.File, name str
 	if chunks < 1 {
 		return svc.singleUpload(ctx, file, name)
 	}
-	chunks += int(size % chunkSize)
 
 	out, err := svc.InitiateMultipartUploadWithContext(ctx, &glacier.InitiateMultipartUploadInput{
 		AccountId:          aws.String("-"),
