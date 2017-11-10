@@ -24,12 +24,12 @@ var usage = func() {
 	flag.PrintDefaults()
 }
 
-func main() {
+type config struct {
+	selected bool
+	ini      *ini.Section
+}
 
-	type config struct {
-		selected bool
-		ini      *ini.Section
-	}
+func main() {
 
 	providers := map[string]*config{
 		"amazon": {},
@@ -76,21 +76,6 @@ func main() {
 		}
 	}
 
-	var parts []string
-
-	dest := strings.SplitN(flag.Arg(num-1), ":", 2)
-	bucket := dest[0]
-
-	if len(dest) > 1 {
-		for _, part := range strings.Split(dest[1], "/") {
-			if part != "" {
-				parts = append(parts, part)
-			}
-		}
-	}
-
-	path := strings.TrimPrefix(strings.Join(parts, "/")+"/", "/")
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -104,7 +89,28 @@ func main() {
 
 	files := make(chan string)
 	go walkSources(ctx, flag.Args()[0:num-1], *recursive, files)
+	runBackups(ctx, flag.Arg(num-1), providers, files)
 
+}
+
+func parseDest(dest string) (bucket, path string) {
+	var parts []string
+	d := strings.SplitN(dest, ":", 2)
+	bucket = d[0]
+
+	if len(d) > 1 {
+		for _, part := range strings.Split(d[1], "/") {
+			if part != "" {
+				parts = append(parts, part)
+			}
+		}
+	}
+
+	return bucket, strings.TrimPrefix(strings.Join(parts, "/")+"/", "/")
+}
+
+func runBackups(ctx context.Context, dest string, providers map[string]*config, files chan string) {
+	bucket, path := parseDest(dest)
 	backupers := make(map[string]cloud.Backuper)
 	doBackup := false
 	for name, cnf := range providers {
@@ -143,7 +149,6 @@ func main() {
 		go status(ctx, f, statuses, wg)
 		wg.Wait()
 	}
-
 }
 
 func status(ctx context.Context, file string, statuses map[string]chan string, wg *sync.WaitGroup) {
