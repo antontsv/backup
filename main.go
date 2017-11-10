@@ -32,8 +32,8 @@ func main() {
 	}
 
 	providers := map[string]*config{
-		"amazon": &config{},
-		"google": &config{},
+		"amazon": {},
+		"google": {},
 	}
 
 	names := make([]string, 0, len(providers))
