@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/antontsv/backup/cloud"
 	"google.golang.org/api/iterator"
@@ -14,7 +13,7 @@ import (
 	"cloud.google.com/go/storage"
 )
 
-const storageClass = "COLDLINE"
+const storageClass = "MULTI_REGIONAL"
 
 type googleBackup struct {
 	ctx      context.Context
@@ -78,20 +77,8 @@ func (b *googleBackup) Upload(ctx context.Context, file string, dest string) err
 	if err != nil {
 		return fmt.Errorf("cannot open file %s in order to start backup into GPC: %v", file, err)
 	}
-	info, err := source.Stat()
-	if err != nil {
-		return fmt.Errorf("cannot open get %s file info: %v", file, err)
-	}
 
-	location := info.Name()
-
-	if strings.HasSuffix(dest, "/") {
-		location = fmt.Sprintf("%s%s", dest, location)
-	} else if dest != "." && len(dest) > 0 {
-		location = dest
-	}
-
-	f := b.handle.Object(location)
+	f := b.handle.Object(dest)
 	w := f.NewWriter(ctx)
 
 	buf := make([]byte, 1024)

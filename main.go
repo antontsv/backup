@@ -1,5 +1,5 @@
 /*
-Package main provides simple file/directory backup to
+Package backup provides simple file/directory backup to
 remote cloud such as Google and Amazon.
 
 Concurrent backup will be performed against all providers
@@ -94,9 +94,14 @@ func main() {
 		cancel()
 	}()
 
-	files := make(chan string)
+	files := make(chan srcFile)
 	go walkSources(ctx, flag.Args()[0:num-1], *recursive, files)
-	runBackups(ctx, flag.Arg(num-1), providers, files)
+	dest := flag.Arg(num - 1)
+	info, err := os.Stat(flag.Arg(0))
+	if num > 2 || (err == nil && *recursive && info.IsDir()) {
+		dest += "/"
+	}
+	runBackups(ctx, dest, providers, files)
 
 }
 
@@ -115,11 +120,19 @@ func parseDest(dest string) (bucket, path string) {
 			}
 		}
 	}
-
-	return bucket, strings.TrimPrefix(strings.Join(parts, "/")+"/", "/")
+	end := ""
+	if strings.HasSuffix(dest, "/") {
+		end = "/"
+	}
+	return bucket, strings.TrimPrefix(strings.Join(parts, "/"), "/") + end
 }
 
-func runBackups(ctx context.Context, dest string, providers map[string]*config, files chan string) {
+type srcFile struct {
+	path string
+	base string
+}
+
+func runBackups(ctx context.Context, dest string, providers map[string]*config, files chan srcFile) {
 	bucket, path := parseDest(dest)
 	backupers := make(map[string]cloud.Backuper)
 	doBackup := false
@@ -153,10 +166,17 @@ func runBackups(ctx context.Context, dest string, providers map[string]*config, 
 			wg.Add(1)
 			status := make(chan string)
 			statuses[name] = status
-			go upload(ctx, bak, f, path+f, status, wg)
+			dest := path
+			base := strings.TrimPrefix(f.base, "/")
+			if strings.HasSuffix(dest, "/") {
+				dest = fmt.Sprintf("%s%s", dest, base)
+			} else if len(dest) <= 0 {
+				dest = base
+			}
+			go upload(ctx, bak, f.path, dest, status, wg)
 		}
 		wg.Add(1)
-		go status(ctx, f, statuses, wg)
+		go status(ctx, f.path, statuses, wg)
 		wg.Wait()
 	}
 }
@@ -252,7 +272,7 @@ func upload(ctx context.Context, worker cloud.Backuper, file string, dest string
 	}
 }
 
-func walkSources(ctx context.Context, sources []string, recursive bool, files chan string) {
+func walkSources(ctx context.Context, sources []string, recursive bool, files chan srcFile) {
 	defer close(files)
 	for _, source := range sources {
 		select {
@@ -264,19 +284,25 @@ func walkSources(ctx context.Context, sources []string, recursive bool, files ch
 				log.Fatalf("cannot open source: %s\n", source)
 			}
 
+			prefix := ""
+			idx := strings.LastIndex(source, "/")
+			if idx > 0 {
+				prefix = source[0:idx]
+			}
+
 			if info.IsDir() {
 				if !recursive {
 					log.Fatalf("%s is a directory, please use -r to make recursive backup\n", source)
 				}
 				err = filepath.Walk(source, func(path string, f os.FileInfo, err error) error {
 					if err == nil && !f.IsDir() && ctx.Err() == nil {
-						files <- path
+						files <- srcFile{path: path, base: strings.TrimPrefix(path, prefix)}
 					}
 					return err
 
 				})
 			} else if ctx.Err() == nil {
-				files <- source
+				files <- srcFile{path: source, base: strings.TrimPrefix(source, prefix)}
 			}
 
 			if err != nil {
