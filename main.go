@@ -8,6 +8,7 @@ enabled in backup configuration INI file
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -23,6 +24,7 @@ import (
 	"github.com/antontsv/backup/awsglacier"
 	"github.com/antontsv/backup/cloud"
 	"github.com/antontsv/backup/gpcs"
+	"github.com/fatih/color"
 	ini "gopkg.in/ini.v1"
 )
 
@@ -51,9 +53,11 @@ func main() {
 	provider := flag.String("p", strings.Join(names, ","), fmt.Sprintf("Cloud service provider names to use"))
 	creds := flag.String("c", "backup.ini", "File with cloud account config")
 	recursive := flag.Bool("r", false, "Recursively backup entire directories")
+	useColor := flag.Bool("color", false, "Whether to use color on provider names")
 	flag.CommandLine.Usage = usage
 	flag.Parse()
 
+	color.NoColor = !*useColor
 	num := flag.NArg()
 	if num < 1 || flag.Arg(0) == "" {
 		log.Fatalln("Missing source file/directory. This must be specified as a first parameter")
@@ -144,13 +148,13 @@ func runBackups(ctx context.Context, dest string, providers map[string]*config, 
 				if err != nil {
 					log.Fatalf("Cannot init Google backup: %v", err)
 				}
-				backupers["Google"] = gpc
+				backupers[googlePrint()] = gpc
 			case "amazon":
 				glacier, err := awsglacier.New(ctx, bucket, cnf.ini)
 				if err != nil {
 					log.Fatalf("Cannot init Amazon backup: %v", err)
 				}
-				backupers["Amazon"] = glacier
+				backupers[amazonPrint()] = glacier
 			}
 			doBackup = true
 		}
@@ -310,4 +314,22 @@ func walkSources(ctx context.Context, sources []string, recursive bool, files ch
 			}
 		}
 	}
+}
+
+func googlePrint() string {
+	w := &bytes.Buffer{}
+	b := color.New(color.FgBlue)
+	r := color.New(color.FgRed)
+	g := color.New(color.FgGreen)
+	y := color.New(color.FgYellow)
+	b.Fprint(w, "G")
+	r.Fprint(w, "o")
+	y.Fprint(w, "o")
+	b.Fprint(w, "g")
+	g.Fprint(w, "l")
+	r.Fprint(w, "e")
+	return string(w.Bytes())
+}
+func amazonPrint() string {
+	return color.New(color.FgYellow).Sprint("Amazon")
 }
