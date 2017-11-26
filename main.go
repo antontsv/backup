@@ -117,17 +117,19 @@ func parseDest(dest string) (bucket, path string) {
 	d := strings.SplitN(dest, ":", 2)
 	bucket = d[0]
 
+	end := ""
+
 	if len(d) > 1 {
 		for _, part := range strings.Split(d[1], "/") {
 			if part != "" {
 				parts = append(parts, part)
 			}
 		}
+		if d[1] != "/" && strings.HasSuffix(dest, "/") {
+			end = "/"
+		}
 	}
-	end := ""
-	if strings.HasSuffix(dest, "/") {
-		end = "/"
-	}
+
 	return bucket, strings.TrimPrefix(strings.Join(parts, "/"), "/") + end
 }
 
