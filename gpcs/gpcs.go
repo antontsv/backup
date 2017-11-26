@@ -13,7 +13,7 @@ import (
 	"cloud.google.com/go/storage"
 )
 
-const storageClass = "MULTI_REGIONAL"
+const storageClass = "COLDLINE"
 
 type googleBackup struct {
 	ctx      context.Context
