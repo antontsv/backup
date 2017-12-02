@@ -51,7 +51,7 @@ func main() {
 	}
 
 	provider := flag.String("p", strings.Join(names, ","), fmt.Sprintf("Cloud service provider names to use"))
-	creds := flag.String("c", "backup.ini", "File with cloud account config")
+	creds := flag.String("c", "", "File with cloud account config")
 	recursive := flag.Bool("r", false, "Recursively backup entire directories")
 	useColor := flag.Bool("color", false, "Whether to use color on provider names")
 	flag.CommandLine.Usage = usage
@@ -65,15 +65,16 @@ func main() {
 		log.Fatalln("Missing target destination. This must be specified as a second parameter as follows 'bucketName:/some/optional/path'")
 	}
 
-	cfg, err := ini.InsensitiveLoad(*creds)
-	if err != nil {
-		log.Fatalf("Cannot read credentials file %s: %v\n", *creds, err)
-	}
-
-	for _, s := range cfg.Sections() {
-		name := s.Name()
-		if _, ok := providers[name]; ok {
-			providers[name].ini = s
+	if *creds != "" {
+		cfg, err := ini.InsensitiveLoad(*creds)
+		if err != nil {
+			log.Fatalf("Cannot read credentials file %s: %v\n", *creds, err)
+		}
+		for _, s := range cfg.Sections() {
+			name := s.Name()
+			if _, ok := providers[name]; ok {
+				providers[name].ini = s
+			}
 		}
 	}
 
